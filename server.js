@@ -39,7 +39,7 @@ adyanApp.use("/images", (req, res) => {
 });
 
 // Configure mongodb connection
-const uriLinkForMongodb = process.env.MONGODB_URI || "mongodb+srv://abdulla:Abdulla123@cluster0.h8xjc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const uriLinkForMongodb = process.env.MONGODB_URI || "mongodb+srv://adyansyxd:adyan1234@cluster0.icjfw.mongodb.net/";
 const clientConnectionLink = new MongoClient(uriLinkForMongodb);
 
 let theCollectionForLessons;
