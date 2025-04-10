@@ -1,6 +1,7 @@
-// Import everything
 import express from "express";
-import { MongoClient, ObjectId } from "mongodb";
+// import { MongoClient, ObjectId } from "mongodb";
+const MongoClient = require("mongodb").MongoClient;
+const ObjectID = require("mongodb").ObjectId;
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -25,6 +26,17 @@ adyanApp.use((req, res, next) => {
   next();
 });
 
+// Database Connection
+let db;
+
+MongoClient.connect("mongodb+srv://adyansyxd:adyan1234@cluster0.icjfw.mongodb.net/"); {
+  if (err) {
+        console.error("Failed to connect to MongoDB:", err);
+        process.exit(1); // Exit the process if the connection fails
+    }
+    db = client.db("Webstore");
+    console.log("Connected to MongoDB!"); 
+}
 adyanApp.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
@@ -39,27 +51,36 @@ adyanApp.use("/images", (req, res) => {
 });
 
 // Configure mongodb connection
-const uriLinkForMongodb = process.env.MONGODB_URI || "mongodb+srv://adyansyxd:adyan1234@cluster0.icjfw.mongodb.net/";
-const clientConnectionLink = new MongoClient(uriLinkForMongodb);
+//const uriLinkForMongodb =
+ // process.env.MONGODB_URI || "mongodb+srv://adyansyxd:adyan1234@cluster0.icjfw.mongodb.net/";
+//const clientConnectionLink = new MongoClient(uriLinkForMongodb);//
+
+// (Optional) Connect once before running the server to handle errors early
+//await clientConnectionLink.connect();
+
+// Example usage of an alternative database "webstore" if needed elsewhere
+//const db = clientConnectionLink.db("webstore");
+const orders = db.collection("orders");
 
 let theCollectionForLessons;
 let theCollectionForOrders;
 
 async function run() {
   try {
-    await clientConnectionLink.connect();
-    const databaseVariableForUsage = clientConnectionLink.db("After_School");
+    // Get the "webstore" database. If you need to use the "After_School" database,
+    // update the string accordingly.
+    const databaseVariableForUsage = clientConnectionLink.db("webstore");
     theCollectionForLessons = databaseVariableForUsage.collection("lessons");
     theCollectionForOrders = databaseVariableForUsage.collection("orders");
 
     adyanApp.get("/", (req, res) => {
       res.send(`
-    <h1>Welcome to the Adyan's Backend Server</h1>
-    <ul>
-      <li><a href="/orders">Go to Adyan's Orders</a></li>
-      <li><a href="/lessons">Go to Adyan's Lessons</a></li>
-    </ul>
-  `);
+        <h1>Welcome to Adyan's Backend Server</h1>
+        <ul>
+          <li><a href="/orders">Go to Adyan's Orders</a></li>
+          <li><a href="/lessons">Go to Adyan's Lessons</a></li>
+        </ul>
+      `);
     });
 
     adyanApp.get("/lessons", async (req, res) => {
@@ -83,7 +104,6 @@ async function run() {
     adyanApp.post("/orders", async (req, res) => {
       try {
         const order = req.body;
-      
         const resultFromDatabaseVariable = await theCollectionForOrders.insertOne(order);
         res
           .status(201)
@@ -93,25 +113,26 @@ async function run() {
       }
     });
 
-    adyanApp.put('/lessons', async (req, res) => {
-			try {
+    adyanApp.put("/lessons", async (req, res) => {
+      try {
+        const lessonsInBody = req.body;
+        // Remove _id if it exists
+        delete lessonsInBody._id;
 
-				const lessonsInBody = req.body;
-				delete lessonsInBody._id;
+        // Extract id and remaining fields (assumes the body contains an "id" field)
+        const { id, ...fieldsWeNeedToUpdate } = lessonsInBody;
 
-				const { id, ...fieldsWeNeedToUpdate } = lessonsInBody;
+        // Update the lesson document by matching its "id" field
+        const resultsFromDatabase = await theCollectionForLessons.updateOne(
+          { id: id },
+          { $set: fieldsWeNeedToUpdate }
+        );
 
-				const resultsFromDatabase = await lessonsCollection.updateOne(
-					{ id: id },
-					{ $set: fieldsWeNeedToUpdate }
-				);
-
-				res.json({ message: 'successful' });
-			} catch (error) {
-				res.status(500).json({ error: 'Failed' });
-			}
-		});
-
+        res.json({ message: "Update successful", results: resultsFromDatabase });
+      } catch (error) {
+        res.status(500).json({ error: "Failed" });
+      }
+    });
 
     adyanApp.get("/search", async (req, res) => {
       const theSearchQuery = (req.query.q || "").trim();
@@ -132,7 +153,7 @@ async function run() {
               {
                 $expr: {
                   $regexMatch: {
-                    input: { $toString: "price" },
+                    input: { $toString: "$price" },
                     regex: theSearchQuery,
                     options: "i",
                   },
@@ -141,7 +162,7 @@ async function run() {
               {
                 $expr: {
                   $regexMatch: {
-                    input: { $toString: "space" },
+                    input: { $toString: "$space" },
                     regex: theSearchQuery,
                     options: "i",
                   },
